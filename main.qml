@@ -3,10 +3,10 @@ import TestApp
 
 Item {
     Text {
-        color: "#ffffff"
+        id: apiInfo
+        color: "white"
         style: Text.Outline
-        styleColor: "#606060"
-        font.pixelSize: 28
+        font.pixelSize: 16
         property int api: GraphicsInfo.api
         text: {
             if (GraphicsInfo.api === GraphicsInfo.OpenGLRhi)
@@ -23,18 +23,67 @@ Item {
                 "Unknown API";
         }
     }
+    Text {
+        anchors.top: apiInfo.bottom
+        color: "white"
+        text: "The green area is a QQuickRhiItem subclass instantiated from QML.\nIt renders the textured cube into a texture directly with the QRhi APIs."
+    }
 
     Rectangle {
         color: "red"
         width: 300
         height: 300
-        anchors.centerIn: parent
+        x: 200
+        y: 200
+        Text {
+            text: "This is an ordinary Qt Quick rectangle"
+            anchors.centerIn: parent
+        }
         NumberAnimation on rotation { from: 0; to: 360; duration: 5000; loops: -1 }
     }
 
     TestRhiItem {
-        anchors.right: parent.right
-        width: 200
-        height: 200
+        id: renderer
+        anchors.centerIn: parent
+        width: parent.width - 400
+        height: parent.height - 200
+
+        transform: [
+            Rotation { id: rotation; axis.x: 0; axis.z: 0; axis.y: 1; angle: 0; origin.x: renderer.width / 2; origin.y: renderer.height / 2; },
+            Translate { id: txOut; x: -renderer.width / 2; y: -renderer.height / 2 },
+            Scale { id: scale; },
+            Translate { id: txIn; x: renderer.width / 2; y: renderer.height / 2 }
+        ]
+
+        NumberAnimation on cubeRotation.y { from: 0; to: 360; duration: 5000; loops: -1 }
+
+        property int counter: 0
+        message: "This text is rendered with\nthe raster paint engine\ninto a texture.\nIt's dynamic too: counter=" + counter
+        Timer {
+            interval: 1000
+            repeat: true
+            running: true
+            onTriggered: renderer.counter += 1
+        }
+    }
+
+    SequentialAnimation {
+        PauseAnimation { duration: 3000 }
+        ParallelAnimation {
+            NumberAnimation { target: scale; property: "xScale"; to: 0.6; duration: 1000; easing.type: Easing.InOutBack }
+            NumberAnimation { target: scale; property: "yScale"; to: 0.6; duration: 1000; easing.type: Easing.InOutBack }
+        }
+        NumberAnimation { target: rotation; property: "angle"; to: 80; duration: 1000; easing.type: Easing.InOutCubic }
+        NumberAnimation { target: rotation; property: "angle"; to: -80; duration: 1000; easing.type: Easing.InOutCubic }
+        NumberAnimation { target: rotation; property: "angle"; to: 0; duration: 1000; easing.type: Easing.InOutCubic }
+        NumberAnimation { target: renderer; property: "opacity"; to: 0.4; duration: 1000; easing.type: Easing.InOutCubic }
+        PauseAnimation { duration: 1000 }
+        NumberAnimation { target: renderer; property: "opacity"; to: 1.0; duration: 1000; easing.type: Easing.InOutCubic }
+        ParallelAnimation {
+            NumberAnimation { target: scale; property: "xScale"; to: 1; duration: 1000; easing.type: Easing.InOutBack }
+            NumberAnimation { target: scale; property: "yScale"; to: 1; duration: 1000; easing.type: Easing.InOutBack }
+        }
+        running: true
+        loops: Animation.Infinite
     }
 }

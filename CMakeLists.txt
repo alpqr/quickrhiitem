@@ -11,11 +11,13 @@ find_package(Qt6 COMPONENTS Core)
 find_package(Qt6 COMPONENTS Gui)
 find_package(Qt6 COMPONENTS Qml)
 find_package(Qt6 COMPONENTS Quick)
+find_package(Qt6 COMPONENTS ShaderTools)
 
 qt_add_executable(testapp
     main.cpp
     rhiitem.cpp rhiitem.h rhiitem_p.h
     customrhiitem.cpp customrhiitem.h
+    cube.h
 )
 target_link_libraries(testapp PUBLIC
     Qt::Core
@@ -24,6 +26,14 @@ target_link_libraries(testapp PUBLIC
     Qt::Qml
     Qt::Quick
     Qt::QuickPrivate
+)
+
+qt_add_shaders(testapp "testapp-shaders"
+    PREFIX
+        "/"
+    FILES
+        "texture.vert"
+        "texture.frag"
 )
 
 qt_add_qml_module(testapp

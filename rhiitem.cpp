@@ -1,8 +1,6 @@
 #include "rhiitem_p.h"
 #include <QtGui/private/qrhi_p.h>
 #include <private/qsgplaintexture_p.h>
-#include <private/qquickwindow_p.h>
-#include <private/qsgdefaultrendercontext_p.h>
 
 /*!
     \class QQuickRhiItem
@@ -117,9 +115,16 @@ void QQuickRhiItemNode::render()
     if (!m_renderPending)
         return;
 
-    QQuickWindowPrivate *wd = QQuickWindowPrivate::get(m_window);
-    QRhiCommandBuffer *cb = static_cast<QSGDefaultRenderContext *>(wd->context)->currentFrameCommandBuffer();
-    Q_ASSERT(cb);
+    QSGRendererInterface *rif = m_window->rendererInterface();
+    QRhiCommandBuffer *cb = nullptr;
+    QRhiSwapChain *swapchain = static_cast<QRhiSwapChain *>(
+        rif->getResource(m_window, QSGRendererInterface::RhiSwapchainResource));
+    cb = swapchain ? swapchain->currentFrameCommandBuffer()
+                   : static_cast<QRhiCommandBuffer *>(rif->getResource(m_window, QSGRendererInterface::RhiRedirectCommandBuffer));
+    if (!cb) {
+        qWarning("Neither swapchain nor redirected command buffer are available.");
+        return;
+    }
 
     m_renderPending = false;
     m_renderer->render(cb);
@@ -218,7 +223,12 @@ void QQuickRhiItemPrivate::_q_invalidateSceneGraph()
 }
 
 /*!
+    Call this function when the texture contents should be rendered again. This
+    function can be called from render() to force the texture to be rendered to
+    again before the next frame.
 
+    \note This function should be used from inside the renderer. To update the
+    item on the GUI thread, use QQuickRhiItem::update().
  */
 void QQuickRhiItemRenderer::update()
 {
@@ -228,6 +238,10 @@ void QQuickRhiItemRenderer::update()
 
 /*!
     Destructor. Called on the render thread of the Qt Quick scenegraph.
+
+    As with QSGNode objects, the QQuickRhiItemRenderer may or may not outlive
+    the QQuickRhiItem. Therefore accessing references to the item in the
+    destructor is not safe.
  */
 QQuickRhiItemRenderer::~QQuickRhiItemRenderer()
 {
@@ -247,31 +261,42 @@ QQuickRhiItemRenderer::~QQuickRhiItemRenderer()
     Implementations will typically create or rebuild a QRhiTextureRenderTarget
     in order to allow the subsequent render() call to render into the texture.
     When a depth buffer is necessary create a QRhiRenderBuffer as well. The
-    size if this must follow the size of \a outputTexture. The most efficient
-    way for this is the following:
+    size if this must follow the size of \a outputTexture. A compact and
+    efficient way for this is the following:
 
     \code
     m_rhi = rhi;
     m_output = outputTexture;
+    bool updateRt = false;
     if (!m_ds) {
         // no depth-stencil buffer yet, create one
         m_ds = m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, m_output->pixelSize());
         m_ds->create();
+        updateRt = true;
     } else if (m_ds->pixelSize() != m_output->pixelSize()) {
         // the size has changed, update the size and rebuild
         m_ds->setPixelSize(m_output->pixelSize());
         m_ds->create();
+        updateRt = true;
     }
-    // ... similarly create/update a QRhiTextureRenderTarget
+    if (!m_rt) {
+        m_rt = m_rhi->newTextureRenderTarget({ { m_output }, m_ds });
+        m_rp = m_rt->newCompatibleRenderPassDescriptor();
+        m_rt->setRenderPassDescriptor(m_rp);
+        m_rt->create();
+    } else if (updateRt) {
+        m_rt->create();
+    }
     \endcode
 
     This function is called on the render thread of the Qt Quick scenegraph.
-    Called with the gui (main) thread blocked.
+    Called with the GUI (main) thread blocked.
 
     The created resources are expected to be released in the destructor
-    implementation of the subclass.
+    implementation of the subclass. \a rhi and \a outputTexture are not owned
+    by, and are guaranteed to outlive the QQuickRhiItemRenderer.
 
-    \sa render()
+    \sa render(), synchronize()
  */
 void QQuickRhiItemRenderer::initialize(QRhi *rhi, QRhiTexture *outputTexture)
 {
@@ -280,8 +305,25 @@ void QQuickRhiItemRenderer::initialize(QRhi *rhi, QRhiTexture *outputTexture)
 }
 
 /*!
-    Called while gui (main) thread is blocked etc.
- */
+    Called with the GUI (main) thread is blocked on the render thread of the Qt
+    Quick scenegraph. This function is the only place when it is safe for the
+    renderer and the item to read and write each others members.
+
+    This function is called as a result of QQuickRhiItem::update(). It is not
+    triggered by QQuickRhiItemRenderer::update(), however.
+
+    Use this function to update the renderer with changes that have occurred in
+    the item. \a item is the item that instantiated this renderer. The function
+    is called once before the first call to render(). The call to this function
+    always happens after initialize(), if there is one.
+
+    \e {For instance, if the item has a color property which is controlled by
+    QML, one should call QQuickRhiItem::update() and use synchronize() to copy
+    the new color into the renderer so that it can be used to render the next
+    frame.
+
+    \sa render(), initialize()
+*/
 void QQuickRhiItemRenderer::synchronize(QQuickRhiItem *item)
 {
     Q_UNUSED(item);
@@ -296,7 +338,7 @@ void QQuickRhiItemRenderer::synchronize(QQuickRhiItem *item)
 
     This function is called on the render thread of the Qt Quick scenegraph.
 
-    To request updates from the gui (main) thread, use QQuickItem::update() on
+    To request updates from the GUI (main) thread, use QQuickItem::update() on
     the QQuickRhiItem. To schedule an update from the render thread, from
     within render() in order to continously update, call update() on the
     QQuickRhiItemRenderer.
@@ -305,7 +347,7 @@ void QQuickRhiItemRenderer::synchronize(QQuickRhiItem *item)
     scenegraph. The function is called with a frame being recorded, but without
     an active render pass.
 
-    \sa initialize()
+    \sa initialize(), synchronize()
  */
 void QQuickRhiItemRenderer::render(QRhiCommandBuffer *cb)
 {
