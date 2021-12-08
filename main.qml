@@ -55,6 +55,7 @@ Item {
             Translate { id: txIn; x: renderer.width / 2; y: renderer.height / 2 }
         ]
 
+        cubeRotation.x: 30
         NumberAnimation on cubeRotation.y { from: 0; to: 360; duration: 5000; loops: -1 }
 
         property int counter: 0
