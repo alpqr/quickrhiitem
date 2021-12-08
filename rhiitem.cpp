@@ -56,18 +56,6 @@ void QQuickRhiItemNode::releaseNativeTexture()
 
 void QQuickRhiItemNode::sync()
 {
-    m_dpr = m_window->effectiveDevicePixelRatio();
-    const QSize newSize = m_window->size() * m_dpr;
-    bool needsNew = false;
-
-    if (!m_sgWrapperTexture)
-        needsNew = true;
-
-    if (newSize != m_pixelSize) {
-        needsNew = true;
-        m_pixelSize = newSize;
-    }
-
     if (!m_rhi) {
         QSGRendererInterface *rif = m_window->rendererInterface();
         m_rhi = static_cast<QRhi *>(rif->getResource(m_window, QSGRendererInterface::RhiResource));
@@ -75,6 +63,17 @@ void QQuickRhiItemNode::sync()
             qWarning("No QRhi found for window %p, QQuickRhiItem will not be functional", m_window);
             return;
         }
+    }
+
+    m_dpr = m_window->effectiveDevicePixelRatio();
+    const int minTexSize = m_rhi->resourceLimit(QRhi::TextureSizeMin);
+    const QSize newSize = QSize(qMax<int>(minTexSize, m_item->width()),
+                                qMax<int>(minTexSize, m_item->height())) * m_dpr;
+
+    bool needsNew = !m_sgWrapperTexture;
+    if (newSize != m_pixelSize) {
+        needsNew = true;
+        m_pixelSize = newSize;
     }
 
     if (needsNew) {
@@ -94,7 +93,7 @@ void QQuickRhiItemNode::sync()
                 m_sgWrapperTexture->setOwnsTexture(false);
                 m_sgWrapperTexture->setTexture(m_texture);
                 m_sgWrapperTexture->setTextureSize(m_pixelSize);
-                //m_sgWrapperTexture->setHasAlphaChannel(options & QQuickWindow::TextureHasAlphaChannel);
+                m_sgWrapperTexture->setHasAlphaChannel(true);
                 setTexture(m_sgWrapperTexture);
             }
         }
@@ -153,14 +152,16 @@ QSGNode *QQuickRhiItem::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
     Q_D(QQuickRhiItem);
     QQuickRhiItemNode *n = static_cast<QQuickRhiItemNode *>(node);
 
-    if (width() <= 0 || height() <= 0) {
-        delete n;
-        d->node = nullptr;
+    // Changing to an empty size should not involve destroying and then later
+    // recreating the node, because we do not know how expensive the user's
+    // renderer setup is. Rather, keep the node if it already exist, and clamp
+    // all accesses to width and height. Hence the unusual !n condition here.
+    if (!n && (width() <= 0 || height() <= 0))
         return nullptr;
-    }
 
     if (!n) {
-        d->node = new QQuickRhiItemNode(this);
+        if (!d->node)
+            d->node = new QQuickRhiItemNode(this);
         n = d->node;
     }
 
@@ -187,7 +188,7 @@ QSGNode *QQuickRhiItem::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
 
     n->setTextureCoordinatesTransform(QSGSimpleTextureNode::NoTransform);
     n->setFiltering(QSGTexture::Linear);
-    n->setRect(0, 0, width(), height());
+    n->setRect(0, 0, qMax<int>(0, width()), qMax<int>(0, height()));
 
     n->scheduleUpdate();
 
@@ -215,11 +216,12 @@ void QQuickRhiItem::releaseResources()
     d->node = nullptr;
 }
 
-void QQuickRhiItemPrivate::_q_invalidateSceneGraph()
+void QQuickRhiItem::invalidateSceneGraph()
 {
     // called on the render thread when the scenegraph is invalidated
 
-    node = nullptr;
+    Q_D(QQuickRhiItem);
+    d->node = nullptr;
 }
 
 /*!

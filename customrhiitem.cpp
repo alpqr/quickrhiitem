@@ -152,7 +152,8 @@ void TestRenderer::render(QRhiCommandBuffer *cb)
     if (rub)
         scene.resourceUpdates = nullptr;
 
-    cb->beginPass(m_rt.data(), QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f), { 1.0f, 0 }, rub);
+    const QColor clearColor = QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
+    cb->beginPass(m_rt.data(), clearColor, { 1.0f, 0 }, rub);
 
     cb->setGraphicsPipeline(scene.ps.data());
     const QSize outputSize = m_output->pixelSize();

@@ -47,7 +47,6 @@ class QQuickRhiItemPrivate : public QQuickItemPrivate
 {
     Q_DECLARE_PUBLIC(QQuickRhiItem)
 public:
-    void _q_invalidateSceneGraph();
     QQuickRhiItemNode *node = nullptr;
 };
 

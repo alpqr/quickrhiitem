@@ -39,8 +39,8 @@ protected:
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void releaseResources() override;
 
-private:
-    Q_PRIVATE_SLOT(d_func(), void _q_invalidateSceneGraph())
+private Q_SLOTS:
+    void invalidateSceneGraph();
 };
 
 #endif
