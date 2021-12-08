@@ -225,12 +225,45 @@ void QQuickRhiItem::invalidateSceneGraph()
 }
 
 /*!
+    \reimp
+*/
+bool QQuickRhiItem::isTextureProvider() const
+{
+    return true;
+}
+
+/*!
+    \reimp
+*/
+QSGTextureProvider *QQuickRhiItem::textureProvider() const
+{
+    if (QQuickItem::isTextureProvider()) // e.g. if Item::layer::enabled == true
+        return QQuickItem::textureProvider();
+
+    QQuickWindow *w = window();
+    if (!w || !w->isSceneGraphInitialized() || QThread::currentThread() != QQuickWindowPrivate::get(w)->context->thread()) {
+        qWarning("QQuickRhiItem::textureProvider: can only be queried on the rendering thread of an exposed window");
+        return nullptr;
+    }
+
+    Q_D(const QQuickRhiItem);
+    if (!d->node) // create a node to have a provider, the texture will be null but that's ok
+        d->node = new QQuickRhiItemNode(const_cast<QQuickRhiItem *>(this));
+
+    return d->node;
+}
+
+/*!
     Call this function when the texture contents should be rendered again. This
     function can be called from render() to force the texture to be rendered to
-    again before the next frame.
+    again before the next frame, i.e. to request another call to render().
 
     \note This function should be used from inside the renderer. To update the
-    item on the GUI thread, use QQuickRhiItem::update().
+    item on the GUI thread, use QQuickRhiItem::update(). Calling this function
+    does not trigger invoking synchronize() because it is expected that the
+    item properties affecting the renderer do not change and need no
+    synchronizing. To also trigger synchronization, call update() on the
+    QQuickRhiItem on the GUI thread instead.
  */
 void QQuickRhiItemRenderer::update()
 {
@@ -349,7 +382,7 @@ void QQuickRhiItemRenderer::synchronize(QQuickRhiItem *item)
     scenegraph. The function is called with a frame being recorded, but without
     an active render pass.
 
-    \sa initialize(), synchronize()
+    \sa initialize(), synchronize(), QQuickItem::update(), QQuickRhiItemRenderer::update()
  */
 void QQuickRhiItemRenderer::render(QRhiCommandBuffer *cb)
 {

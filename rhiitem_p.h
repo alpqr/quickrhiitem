@@ -47,7 +47,7 @@ class QQuickRhiItemPrivate : public QQuickItemPrivate
 {
     Q_DECLARE_PUBLIC(QQuickRhiItem)
 public:
-    QQuickRhiItemNode *node = nullptr;
+    mutable QQuickRhiItemNode *node = nullptr;
 };
 
 #endif

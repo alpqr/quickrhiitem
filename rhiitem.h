@@ -38,6 +38,8 @@ protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
     void geometryChange(const QRectF &newGeometry, const QRectF &oldGeometry) override;
     void releaseResources() override;
+    bool isTextureProvider() const override;
+    QSGTextureProvider *textureProvider() const override;
 
 private Q_SLOTS:
     void invalidateSceneGraph();
