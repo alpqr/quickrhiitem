@@ -1,11 +1,12 @@
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Layouts
 import TestApp
 
 Item {
     Text {
         id: apiInfo
-        color: "white"
-        style: Text.Outline
+        color: "black"
         font.pixelSize: 16
         property int api: GraphicsInfo.api
         text: {
@@ -24,9 +25,28 @@ Item {
         }
     }
     Text {
+        id: infoText
         anchors.top: apiInfo.bottom
-        color: "white"
+        color: "black"
         text: "The green area is a QQuickRhiItem subclass instantiated from QML.\nIt renders the textured cube into a texture directly with the QRhi APIs."
+    }
+    RowLayout {
+        anchors.top: infoText.bottom
+        CheckBox {
+            id: cbTrans
+            text: "Transparent clear color"
+            checked: false
+        }
+        CheckBox {
+            id: cbBlend
+            text: "Enable blending regardless of opacity"
+            checked: true
+        }
+        CheckBox {
+            id: cbFixedSize
+            text: "Use an explicit texture size"
+            checked: false
+        }
     }
 
     Rectangle {
@@ -66,6 +86,14 @@ Item {
             running: true
             onTriggered: renderer.counter += 1
         }
+
+        transparentBackground: cbTrans.checked
+        alphaBlending: cbBlend.checked
+
+        explicitTextureWidth: cbFixedSize.checked ? 128 : 0
+        explicitTextureHeight: cbFixedSize.checked ? 128 : 0
+
+        onEffectiveTextureSizeChanged: console.log("TestRhiItem is rendering to a texture of pixel size " + effectiveTextureSize)
     }
 
     SequentialAnimation {

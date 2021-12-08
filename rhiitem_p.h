@@ -47,7 +47,12 @@ class QQuickRhiItemPrivate : public QQuickItemPrivate
 {
     Q_DECLARE_PUBLIC(QQuickRhiItem)
 public:
+    static QQuickRhiItemPrivate *get(QQuickRhiItem *item) { return item->d_func(); }
     mutable QQuickRhiItemNode *node = nullptr;
+    int explicitTextureWidth = 0;
+    int explicitTextureHeight = 0;
+    bool blend = true;
+    QSize effectiveTextureSize;
 };
 
 #endif

@@ -32,6 +32,7 @@ private:
     struct {
         QVector3D cubeRotation;
         QString message;
+        bool transparentBackground = false;
     } itemData;
 
     void initScene();
@@ -46,6 +47,7 @@ class TestRhiItem : public QQuickRhiItem
 
     Q_PROPERTY(QVector3D cubeRotation READ cubeRotation WRITE setCubeRotation NOTIFY cubeRotationChanged)
     Q_PROPERTY(QString message READ message WRITE setMessage NOTIFY messageChanged)
+    Q_PROPERTY(bool transparentBackground READ transparentBackground WRITE setTransparentBackground NOTIFY transparentBackgroundChanged)
 
 public:
     QQuickRhiItemRenderer *createRenderer() override { return new TestRenderer; }
@@ -56,13 +58,18 @@ public:
     QString message() const { return m_message; }
     void setMessage(const QString &s);
 
+    bool transparentBackground() const { return m_transparentBackground; }
+    void setTransparentBackground(bool b);
+
 signals:
     void cubeRotationChanged();
     void messageChanged();
+    void transparentBackgroundChanged();
 
 private:
     QVector3D m_cubeRotation;
     QString m_message;
+    bool m_transparentBackground;
 };
 
 #endif

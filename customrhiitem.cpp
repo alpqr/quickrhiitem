@@ -144,6 +144,10 @@ void TestRenderer::synchronize(QQuickRhiItem *rhiItem)
         itemData.message = item->message();
         updateCubeTexture();
     }
+    if (item->transparentBackground() != itemData.transparentBackground) {
+        itemData.transparentBackground = item->transparentBackground();
+
+    }
 }
 
 void TestRenderer::render(QRhiCommandBuffer *cb)
@@ -152,7 +156,9 @@ void TestRenderer::render(QRhiCommandBuffer *cb)
     if (rub)
         scene.resourceUpdates = nullptr;
 
-    const QColor clearColor = QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
+    const QColor clearColor = itemData.transparentBackground ? Qt::transparent
+                                                             : QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
+
     cb->beginPass(m_rt.data(), clearColor, { 1.0f, 0 }, rub);
 
     cb->setGraphicsPipeline(scene.ps.data());
@@ -186,5 +192,15 @@ void TestRhiItem::setMessage(const QString &s)
 
     m_message = s;
     emit messageChanged();
+    update();
+}
+
+void TestRhiItem::setTransparentBackground(bool b)
+{
+    if (m_transparentBackground == b)
+        return;
+
+    m_transparentBackground = b;
+    emit transparentBackgroundChanged();
     update();
 }

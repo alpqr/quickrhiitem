@@ -65,10 +65,13 @@ void QQuickRhiItemNode::sync()
         }
     }
 
-    m_dpr = m_window->effectiveDevicePixelRatio();
-    const int minTexSize = m_rhi->resourceLimit(QRhi::TextureSizeMin);
-    const QSize newSize = QSize(qMax<int>(minTexSize, m_item->width()),
-                                qMax<int>(minTexSize, m_item->height())) * m_dpr;
+    QSize newSize(m_item->explicitTextureWidth(), m_item->explicitTextureHeight());
+    if (newSize.isEmpty()) {
+        m_dpr = m_window->effectiveDevicePixelRatio();
+        const int minTexSize = m_rhi->resourceLimit(QRhi::TextureSizeMin);
+        newSize = QSize(qMax<int>(minTexSize, m_item->width()),
+                        qMax<int>(minTexSize, m_item->height())) * m_dpr;
+    }
 
     bool needsNew = !m_sgWrapperTexture;
     if (newSize != m_pixelSize) {
@@ -93,12 +96,20 @@ void QQuickRhiItemNode::sync()
                 m_sgWrapperTexture->setOwnsTexture(false);
                 m_sgWrapperTexture->setTexture(m_texture);
                 m_sgWrapperTexture->setTextureSize(m_pixelSize);
-                m_sgWrapperTexture->setHasAlphaChannel(true);
+                m_sgWrapperTexture->setHasAlphaChannel(m_item->alphaBlending());
                 setTexture(m_sgWrapperTexture);
             }
         }
+        QQuickRhiItemPrivate::get(m_item)->effectiveTextureSize = m_pixelSize;
+        emit m_item->effectiveTextureSizeChanged();
         if (m_texture)
             m_renderer->initialize(m_rhi, m_texture);
+    }
+
+    if (m_sgWrapperTexture && m_sgWrapperTexture->hasAlphaChannel() != m_item->alphaBlending()) {
+        m_sgWrapperTexture->setHasAlphaChannel(m_item->alphaBlending());
+        // hasAlphaChannel is mapped to QSGMaterial::Blending in setTexture() so that has to be called again
+        setTexture(m_sgWrapperTexture);
     }
 
     m_renderer->synchronize(m_item);
@@ -251,6 +262,63 @@ QSGTextureProvider *QQuickRhiItem::textureProvider() const
         d->node = new QQuickRhiItemNode(const_cast<QQuickRhiItem *>(this));
 
     return d->node;
+}
+
+int QQuickRhiItem::explicitTextureWidth() const
+{
+    Q_D(const QQuickRhiItem);
+    return d->explicitTextureWidth;
+}
+
+void QQuickRhiItem::setExplicitTextureWidth(int w)
+{
+    Q_D(QQuickRhiItem);
+    if (d->explicitTextureWidth == w)
+        return;
+
+    d->explicitTextureWidth = w;
+    emit explicitTextureWidthChanged();
+    update();
+}
+
+int QQuickRhiItem::explicitTextureHeight() const
+{
+    Q_D(const QQuickRhiItem);
+    return d->explicitTextureHeight;
+}
+
+void QQuickRhiItem::setExplicitTextureHeight(int h)
+{
+    Q_D(QQuickRhiItem);
+    if (d->explicitTextureHeight == h)
+        return;
+
+    d->explicitTextureHeight = h;
+    emit explicitTextureHeightChanged();
+    update();
+}
+
+QSize QQuickRhiItem::effectiveTextureSize() const
+{
+    Q_D(const QQuickRhiItem);
+    return d->effectiveTextureSize;
+}
+
+bool QQuickRhiItem::alphaBlending() const
+{
+    Q_D(const QQuickRhiItem);
+    return d->blend;
+}
+
+void QQuickRhiItem::setAlphaBlending(bool b)
+{
+    Q_D(QQuickRhiItem);
+    if (d->blend == b)
+        return;
+
+    d->blend = b;
+    emit alphaBlendingChanged();
+    update();
 }
 
 /*!
