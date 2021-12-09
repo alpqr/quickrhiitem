@@ -33,6 +33,7 @@ class QQuickRhiItem : public QQuickItem
     Q_PROPERTY(int explicitTextureHeight READ explicitTextureHeight WRITE setExplicitTextureHeight NOTIFY explicitTextureHeightChanged)
     Q_PROPERTY(QSize effectiveTextureSize READ effectiveTextureSize NOTIFY effectiveTextureSizeChanged)
     Q_PROPERTY(bool alphaBlending READ alphaBlending WRITE setAlphaBlending NOTIFY alphaBlendingChanged)
+    Q_PROPERTY(bool mirrorVertically READ mirrorVertically WRITE setMirrorVertically NOTIFY mirrorVerticallyChanged)
 
 public:
     QQuickRhiItem(QQuickItem *parent = nullptr);
@@ -47,7 +48,10 @@ public:
     QSize effectiveTextureSize() const;
 
     bool alphaBlending() const;
-    void setAlphaBlending(bool b);
+    void setAlphaBlending(bool enable);
+
+    bool mirrorVertically() const;
+    void setMirrorVertically(bool enable);
 
 protected:
     QSGNode *updatePaintNode(QSGNode *, UpdatePaintNodeData *) override;
@@ -61,6 +65,7 @@ Q_SIGNALS:
     void explicitTextureHeightChanged();
     void effectiveTextureSizeChanged();
     void alphaBlendingChanged();
+    void mirrorVerticallyChanged();
 
 private Q_SLOTS:
     void invalidateSceneGraph();

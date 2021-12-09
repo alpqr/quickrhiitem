@@ -47,6 +47,11 @@ Item {
             text: "Use an explicit texture size"
             checked: false
         }
+        CheckBox {
+            id: cbFlip
+            text: "Mirror vertically"
+            checked: false
+        }
     }
 
     Rectangle {
@@ -89,6 +94,7 @@ Item {
 
         transparentBackground: cbTrans.checked
         alphaBlending: cbBlend.checked
+        mirrorVertically: cbFlip.checked
 
         explicitTextureWidth: cbFixedSize.checked ? 128 : 0
         explicitTextureHeight: cbFixedSize.checked ? 128 : 0

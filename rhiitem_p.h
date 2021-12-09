@@ -52,6 +52,7 @@ public:
     int explicitTextureWidth = 0;
     int explicitTextureHeight = 0;
     bool blend = true;
+    bool mirrorVertically = false;
     QSize effectiveTextureSize;
 };
 

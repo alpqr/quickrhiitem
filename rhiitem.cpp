@@ -372,7 +372,7 @@ QSGNode *QQuickRhiItem::updatePaintNode(QSGNode *node, UpdatePaintNodeData *)
         return nullptr;
     }
 
-    n->setTextureCoordinatesTransform(QSGSimpleTextureNode::NoTransform);
+    n->setTextureCoordinatesTransform(d->mirrorVertically ? QSGSimpleTextureNode::MirrorVertically : QSGSimpleTextureNode::NoTransform);
     n->setFiltering(QSGTexture::Linear);
     n->setRect(0, 0, qMax<int>(0, width()), qMax<int>(0, height()));
 
@@ -538,14 +538,41 @@ bool QQuickRhiItem::alphaBlending() const
     return d->blend;
 }
 
-void QQuickRhiItem::setAlphaBlending(bool b)
+void QQuickRhiItem::setAlphaBlending(bool enable)
 {
     Q_D(QQuickRhiItem);
-    if (d->blend == b)
+    if (d->blend == enable)
         return;
 
-    d->blend = b;
+    d->blend = enable;
     emit alphaBlendingChanged();
+    update();
+}
+
+/*!
+    \property QQuickRhiItem::mirrorVertically
+
+    This property controls if the shader that is used when drawing the quad
+    textured with the QQuickRhiItem's associated texture should flip the V
+    texture coordinate.
+
+    The default value is false.
+ */
+
+bool QQuickRhiItem::mirrorVertically() const
+{
+    Q_D(const QQuickRhiItem);
+    return d->mirrorVertically;
+}
+
+void QQuickRhiItem::setMirrorVertically(bool enable)
+{
+    Q_D(QQuickRhiItem);
+    if (d->mirrorVertically == enable)
+        return;
+
+    d->mirrorVertically = enable;
+    emit mirrorVerticallyChanged();
     update();
 }
 
