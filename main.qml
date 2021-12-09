@@ -84,7 +84,7 @@ Item {
         NumberAnimation on cubeRotation.y { from: 0; to: 360; duration: 5000; loops: -1 }
 
         property int counter: 0
-        message: "This text is rendered with\nthe raster paint engine\ninto a texture.\nIt's dynamic too: counter=" + counter
+        message: "This text is rendered with\nthe raster paint engine\ninto a texture.\nIt's dynamic too: " + counter
         Timer {
             interval: 1000
             repeat: true
