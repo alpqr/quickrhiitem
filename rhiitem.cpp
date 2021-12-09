@@ -4,9 +4,184 @@
 
 /*!
     \class QQuickRhiItem
+    \inmodule QtQuick
+    \since 6.x
 
-    Replaces QQuickFramebufferObject in the modern world.
+    \brief The QQuickRhiItem class is a convenience class for integrating QRhi
+    rendering, that is targeting a 2D texture, with Qt Quick.
 
+    In practice QQuickRhiItem replaces QQuickFramebufferObject from Qt 5. The
+    latter was tied to OpenGL, while QQuickRhiItem is functional with any of
+    the supported 3D graphics APIs abstracted by QRhi.
+
+    \note QQuickRhiItem is not compatible with the \c software backend of Qt Quick.
+
+    On most platforms, the rendering will occur on a \l {Scene Graph and
+    Rendering}{dedicated thread}. For this reason, the QQuickRhiItem class
+    enforces a strict separation between the item implementation and the
+    rendering working directly with the graphics resources. All item logic,
+    such as properties and UI-related helper functions needed by QML should be
+    located in a QQuickRhiItem class subclass. Everything that relates to
+    rendering must be located in the QQuickRhiItemRenderer class.
+
+    To avoid race conditions and read/write issues from two threads it is
+    important that the renderer and the item never read or write shared
+    variables. Communication between the item and the renderer should primarily
+    happen via the QQuickRhiItemRenderer::synchronize() function. This function
+    will be called on the render thread while the GUI thread is blocked.
+
+    Using queued connections or events for communication between item and
+    renderer is also possible.
+
+    To render into the 2D texture that is implicitly created and managed by the
+    QQuickRhiItem, the user should subclass the QQuickRhiItemRenderer class and
+    reimplement its render() function. An instance of the QQuickRhiItemRenderer
+    subclass is expected to be returned from createRenderer().
+
+    The size of the texture will by default adapt to the size of the item. If a
+    fixed size is preferred, set explicitTextureWidth and
+    explicitTextureHeight.
+
+    QQuickRhiItem is a \l{QSGTextureProvider}{texture provider} and can be used
+    directly in \l {ShaderEffect}{ShaderEffects} and other classes that consume
+    texture providers, without involving an additional render pass.
+
+    An example of a basic QQuickRhiItem implementation could be the following:
+
+    \code
+        class ExampleItem : public QQuickRhiItem
+        {
+            Q_OBJECT
+            QML_NAMED_ELEMENT(ExampleItem)
+            Q_PROPERTY(bool transparentBackground READ transparentBackground WRITE setTransparentBackground NOTIFY transparentBackgroundChanged)
+        public:
+            QQuickRhiItemRenderer *createRenderer() override { return new ExampleRenderer; }
+            bool transparentBackground() const { return m_transparentBackground; }
+            void setTransparentBackground(bool b);
+        signals:
+            void transparentBackgroundChanged();
+        private:
+            bool m_transparentBackground;
+        };
+
+        void ExampleItem::setTransparentBackground(bool b)
+        {
+            if (m_transparentBackground == b)
+                return;
+            m_transparentBackground = b;
+            emit transparentBackgroundChanged();
+            update();
+        }
+    \endcode
+
+    Here we demonstrate an item with one custom property, \c
+    transparentBackground, which will control the color to which the texture is
+    cleared to in the renderer. The value will be synchronized to the renderer
+    object in QQuickRhiItemRenderer::synchronize().
+
+    \code
+        class ExampleRenderer : public QQuickRhiItemRenderer
+        {
+        public:
+            void initialize(QRhi *rhi, QRhiTexture *outputTexture) override;
+            void synchronize(QQuickRhiItem *item) override;
+            void render(QRhiCommandBuffer *cb) override;
+        private:
+            QRhi *m_rhi = nullptr;
+            QRhiTexture *m_output = nullptr;
+            QScopedPointer<QRhiRenderBuffer> m_ds;
+            QScopedPointer<QRhiTextureRenderTarget> m_rt;
+            QScopedPointer<QRhiRenderPassDescriptor> m_rp;
+            bool m_transparentBackground = false;
+        };
+
+        void ExampleRenderer::initialize(QRhi *rhi, QRhiTexture *outputTexture)
+        {
+            m_rhi = rhi;
+            m_output = outputTexture;
+            if (!m_ds) {
+                m_ds.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, m_output->pixelSize()));
+                m_ds->create();
+            } else if (m_ds->pixelSize() != m_output->pixelSize()) {
+                m_ds->setPixelSize(m_output->pixelSize());
+                m_ds->create();
+            }
+            if (!m_rt) {
+                m_rt.reset(m_rhi->newTextureRenderTarget({ { m_output }, m_ds.data() }));
+                m_rp.reset(m_rt->newCompatibleRenderPassDescriptor());
+                m_rt->setRenderPassDescriptor(m_rp.data());
+                m_rt->create();
+            }
+        }
+
+        void ExampleRenderer::synchronize(QQuickRhiItem *rhiItem)
+        {
+            ExampleItem *item = static_cast<ExampleItem *>(rhiItem);
+            if (item->transparentBackground() != m_transparentBackground)
+                m_transparentBackground = item->transparentBackground();
+        }
+
+        void ExampleRenderer::render(QRhiCommandBuffer *cb)
+        {
+            const QColor clearColor = m_transparentBackground ? Qt::transparent
+                                                              : QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
+            cb->beginPass(m_rt.data(), clearColor, { 1.0f, 0 });
+            cb->endPass();
+        }
+    \endcode
+
+    The renderer logic starts and ends a render pass targeting the texture,
+    which leads to clearing it to the specified color.
+
+    The renderer example above also shows how to set up a depth-stencil buffer.
+    When depth testing is not needed by the rendering logic, this can be left
+    out and the QRhiTextureRenderTarget can be created with just m_output as a
+    color attachment, no depth-stencil buffer.
+
+    ExampleItem can then, assuming the necessary \c qt_add_qml_module in place
+    in CMakeLists.txt with the URI \c ExampleUri, be instantiated in the Qt
+    Quick scene in QML:
+
+    \badcode
+    import QtQuick
+    import ExampleUri
+    Item {
+        ...
+        ExampleItem {
+            width: 640
+            height: 480
+            anchors.centerIn: parent
+        }
+    }
+    \endcode
+
+    The result is a quad textured with a texture that is, due to
+    ExampleRenderer::render(), either opaque green or fully transparent in this
+    example. ExampleItem is a proper visual QQuickItem, and can be transformed
+    and manipulated like other Items.
+
+    \sa QQuickRhiItemRenderer, {Scene Graph - Rendering FBOs}, {Scene Graph and Rendering}
+ */
+
+/*!
+    \class QQuickRhiItemRenderer
+    \inmodule QtQuick
+    \since 6.x
+
+    The QQuickRhiItemRenderer class is used to implement the rendering logic of
+    a QQuickRhiItem. It is instantiated and returned from the QQuickRhiItem
+    subclass' reimplementation of createRenderer().
+
+    The QQuickRhiItemRenderer always lives on the rendering thread of the Qt
+    Quick scenegraph. All its functions are called on the render thread.
+
+    \note Due to different lifetimes and thread affinities, care must be taken
+    to only access the QQuickRhiItem from the renderer when it is safe to do
+    so: in synchronize() and initialize(). Keeping references to the item and
+    dereferencing it elsewhere, in render() or in the destructor is unsafe and
+    will can lead to unspecified behavior.
+
+    \sa QQuickRhiItem
  */
 
 QQuickRhiItemNode::QQuickRhiItemNode(QQuickRhiItem *item)
@@ -264,6 +439,18 @@ QSGTextureProvider *QQuickRhiItem::textureProvider() const
     return d->node;
 }
 
+/*!
+    \property QQuickRhiItem::explicitTextureWidth
+
+    This property allows specifying the width (in pixels) of the
+    QQuickRhiItem's associated texture. By default the texture follows the size
+    of the QQuickRhiItem. When this is not desired, set explicitTextureWidth
+    and explicitTextureHeight to a value larger than 0. The texture will then
+    always have that size.
+
+    The default value is 0.
+ */
+
 int QQuickRhiItem::explicitTextureWidth() const
 {
     Q_D(const QQuickRhiItem);
@@ -280,6 +467,18 @@ void QQuickRhiItem::setExplicitTextureWidth(int w)
     emit explicitTextureWidthChanged();
     update();
 }
+
+/*!
+    \property QQuickRhiItem::explicitTextureHeight
+
+    This property allows specifying the height (in pixels) of the
+    QQuickRhiItem's associated texture. By default the texture follows the size
+    of the QQuickRhiItem. When this is not desired, set explicitTextureWidth
+    and explicitTextureHeight to a value larger than 0. The texture will then
+    always have that size.
+
+    The default value is 0.
+ */
 
 int QQuickRhiItem::explicitTextureHeight() const
 {
@@ -298,11 +497,40 @@ void QQuickRhiItem::setExplicitTextureHeight(int h)
     update();
 }
 
+/*!
+    \property QQuickRhiItem::effectiveTextureSize
+
+    This read-only property contains the size of the QQuickRhiItem's associated
+    texture, in pixels. In practice this is the same as the pixelSize() of the
+    \c outputTexture passed to QQuickRhiItemRenderer::initialize().
+
+    \note The value is only up-to-date when the QQuickRhiItem has rendered at
+    least once.
+ */
+
 QSize QQuickRhiItem::effectiveTextureSize() const
 {
     Q_D(const QQuickRhiItem);
     return d->effectiveTextureSize;
 }
+
+/*!
+    \property QQuickRhiItem::alphaBlending
+
+    This property controls if blending is enabled for the item even when
+    nothing else, such as the opacity, implies that alpha blending is required.
+
+    The default value is true.
+
+    The value plays no role when the item's effective opacity is smaller than
+    1.0, because blending is then enabled implicitly.
+
+    Setting the property to false can serve as an optimization when the content
+    rendered to the QQuickRhiItem's associated texture is fully opaque and no
+    semi-transparency is involved. The result on screen is not affected in this
+    case, but disabling blending can be more efficient depending on the
+    underlying graphics API and hardware.
+ */
 
 bool QQuickRhiItem::alphaBlending() const
 {
@@ -370,24 +598,19 @@ QQuickRhiItemRenderer::~QQuickRhiItemRenderer()
     \code
     m_rhi = rhi;
     m_output = outputTexture;
-    bool updateRt = false;
     if (!m_ds) {
         // no depth-stencil buffer yet, create one
         m_ds = m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, m_output->pixelSize());
         m_ds->create();
-        updateRt = true;
     } else if (m_ds->pixelSize() != m_output->pixelSize()) {
         // the size has changed, update the size and rebuild
         m_ds->setPixelSize(m_output->pixelSize());
         m_ds->create();
-        updateRt = true;
     }
     if (!m_rt) {
         m_rt = m_rhi->newTextureRenderTarget({ { m_output }, m_ds });
         m_rp = m_rt->newCompatibleRenderPassDescriptor();
         m_rt->setRenderPassDescriptor(m_rp);
-        m_rt->create();
-    } else if (updateRt) {
         m_rt->create();
     }
     \endcode
@@ -457,4 +680,5 @@ void QQuickRhiItemRenderer::render(QRhiCommandBuffer *cb)
     Q_UNUSED(cb);
 }
 
+#include "rhiitem.moc"
 #include "moc_rhiitem.cpp"

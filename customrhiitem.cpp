@@ -144,10 +144,8 @@ void TestRenderer::synchronize(QQuickRhiItem *rhiItem)
         itemData.message = item->message();
         updateCubeTexture();
     }
-    if (item->transparentBackground() != itemData.transparentBackground) {
+    if (item->transparentBackground() != itemData.transparentBackground)
         itemData.transparentBackground = item->transparentBackground();
-
-    }
 }
 
 void TestRenderer::render(QRhiCommandBuffer *cb)
