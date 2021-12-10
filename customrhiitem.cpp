@@ -10,23 +10,18 @@ void TestRenderer::initialize(QRhi *rhi, QRhiTexture *outputTexture)
     m_rhi = rhi;
     m_output = outputTexture;
 
-    bool updateRt = false;
     if (!m_ds) {
         m_ds.reset(m_rhi->newRenderBuffer(QRhiRenderBuffer::DepthStencil, m_output->pixelSize()));
         m_ds->create();
-        updateRt = true;
     } else if (m_ds->pixelSize() != m_output->pixelSize()) {
         m_ds->setPixelSize(m_output->pixelSize());
         m_ds->create();
-        updateRt = true;
     }
 
     if (!m_rt) {
         m_rt.reset(m_rhi->newTextureRenderTarget({ { m_output }, m_ds.data() }));
         m_rp.reset(m_rt->newCompatibleRenderPassDescriptor());
         m_rt->setRenderPassDescriptor(m_rp.data());
-        m_rt->create();
-    } else if (updateRt) {
         m_rt->create();
     }
 
