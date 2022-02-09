@@ -1,4 +1,4 @@
-#include "customrhiitem.h"
+#include "testrhiitem.h"
 #include "cube.h"
 #include <QFile>
 #include <QPainter>
@@ -25,24 +25,14 @@ void TestRenderer::initialize(QRhi *rhi, QRhiTexture *outputTexture)
         m_rt->create();
     }
 
-    if (!scene.vbuf) {
+    if (!scene.vbuf)
         initScene();
-        updateCubeTexture();
-    }
 
     const QSize outputSize = m_output->pixelSize();
     scene.mvp = m_rhi->clipSpaceCorrMatrix();
     scene.mvp.perspective(45.0f, outputSize.width() / (float) outputSize.height(), 0.01f, 1000.0f);
     scene.mvp.translate(0, 0, -4);
-    updateMvp();
-}
-
-void TestRenderer::updateMvp()
-{
-    QMatrix4x4 mvp = scene.mvp * QMatrix4x4(QQuaternion::fromEulerAngles(itemData.cubeRotation).toRotationMatrix());
-    if (!scene.resourceUpdates)
-        scene.resourceUpdates = m_rhi->nextResourceUpdateBatch();
-    scene.resourceUpdates->updateDynamicBuffer(scene.ubuf.data(), 0, 64, mvp.constData());
+    scene.resourceUpdates->updateDynamicBuffer(scene.ubuf.data(), 0, 64, scene.mvp.constData());
 }
 
 static QShader getShader(const QString &name)
@@ -70,6 +60,9 @@ void TestRenderer::initScene()
 
     scene.cubeTex.reset(m_rhi->newTexture(QRhiTexture::RGBA8, CUBE_TEX_SIZE));
     scene.cubeTex->create();
+    QImage img(CUBE_TEX_SIZE, QImage::Format_RGBA8888);
+    img.fill(Qt::red);
+    scene.resourceUpdates->uploadTexture(scene.cubeTex.data(), img);
 
     scene.sampler.reset(m_rhi->newSampler(QRhiSampler::Linear, QRhiSampler::Linear, QRhiSampler::None,
                                                QRhiSampler::ClampToEdge, QRhiSampler::ClampToEdge));
@@ -111,7 +104,7 @@ void TestRenderer::initScene()
     scene.ps->create();
 }
 
-void TestRenderer::synchronize(QQuickRhiItem *rhiItem)
+void TestRenderer::synchronize(RhiItem *rhiItem)
 {
     TestRhiItem *item = static_cast<TestRhiItem *>(rhiItem);
 }
@@ -122,9 +115,7 @@ void TestRenderer::render(QRhiCommandBuffer *cb)
     if (rub)
         scene.resourceUpdates = nullptr;
 
-    const QColor clearColor = itemData.transparentBackground ? Qt::transparent
-                                                             : QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
-
+    const QColor clearColor = QColor::fromRgbF(0.4f, 0.7f, 0.0f, 1.0f);
     cb->beginPass(m_rt.data(), clearColor, { 1.0f, 0 }, rub);
 
     cb->setGraphicsPipeline(scene.ps.data());

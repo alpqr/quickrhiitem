@@ -1,14 +1,14 @@
-#ifndef CUSTOMRHIITEM_H
-#define CUSTOMRHIITEM_H
+#ifndef TESTRHIITEM_H
+#define TESTRHIITEM_H
 
 #include "rhiitem.h"
 #include <QtGui/private/qrhi_p.h>
 
-class TestRenderer : public QQuickRhiItemRenderer
+class TestRenderer : public RhiItemRenderer
 {
 public:
     void initialize(QRhi *rhi, QRhiTexture *outputTexture) override;
-    void synchronize(QQuickRhiItem *item) override;
+    void synchronize(RhiItem *item) override;
     void render(QRhiCommandBuffer *cb) override;
 
 private:
@@ -36,13 +36,13 @@ private:
     void updateMvp();
 };
 
-class TestRhiItem : public QQuickRhiItem
+class TestRhiItem : public RhiItem
 {
     Q_OBJECT
     QML_NAMED_ELEMENT(TestRhiItem)
 
 public:
-    QQuickRhiItemRenderer *createRenderer() override { return new TestRenderer; }
+    RhiItemRenderer *createRenderer() override { return new TestRenderer; }
 
 signals:
 

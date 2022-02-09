@@ -16,9 +16,12 @@ find_package(Qt6 COMPONENTS ShaderTools)
 qt_add_executable(testapp
     main.cpp
     rhiitem.cpp rhiitem.h rhiitem_p.h
-    customrhiitem.cpp customrhiitem.h
+    testrhiitem.cpp testrhiitem.h
     cube.h
 )
+
+set_property(SOURCE rhiitem.cpp PROPERTY SKIP_AUTOMOC ON)
+
 target_link_libraries(testapp PUBLIC
     Qt::Core
     Qt::Gui

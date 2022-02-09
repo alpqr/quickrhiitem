@@ -3,31 +3,31 @@
 
 #include <QQuickItem>
 
-class QQuickRhiItem;
-class QQuickRhiItemPrivate;
+class RhiItem;
+class RhiItemPrivate;
 class QRhi;
 class QRhiTexture;
 class QRhiCommandBuffer;
 
-class QQuickRhiItemRenderer
+class RhiItemRenderer
 {
 public:
-    virtual ~QQuickRhiItemRenderer();
+    virtual ~RhiItemRenderer();
     virtual void initialize(QRhi *rhi, QRhiTexture *outputTexture);
-    virtual void synchronize(QQuickRhiItem *item);
+    virtual void synchronize(RhiItem *item);
     virtual void render(QRhiCommandBuffer *cb);
 
     void update();
 
 private:
     void *data;
-    friend class QQuickRhiItem;
+    friend class RhiItem;
 };
 
-class QQuickRhiItem : public QQuickItem
+class RhiItem : public QQuickItem
 {
     Q_OBJECT
-    Q_DECLARE_PRIVATE(QQuickRhiItem)
+    Q_DECLARE_PRIVATE(RhiItem)
 
     Q_PROPERTY(int explicitTextureWidth READ explicitTextureWidth WRITE setExplicitTextureWidth NOTIFY explicitTextureWidthChanged)
     Q_PROPERTY(int explicitTextureHeight READ explicitTextureHeight WRITE setExplicitTextureHeight NOTIFY explicitTextureHeightChanged)
@@ -36,9 +36,9 @@ class QQuickRhiItem : public QQuickItem
     Q_PROPERTY(bool mirrorVertically READ mirrorVertically WRITE setMirrorVertically NOTIFY mirrorVerticallyChanged)
 
 public:
-    QQuickRhiItem(QQuickItem *parent = nullptr);
+    RhiItem(QQuickItem *parent = nullptr);
 
-    virtual QQuickRhiItemRenderer *createRenderer() = 0;
+    virtual RhiItemRenderer *createRenderer() = 0;
 
     int explicitTextureWidth() const;
     void setExplicitTextureWidth(int w);

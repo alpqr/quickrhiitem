@@ -9,13 +9,13 @@ class QSGPlainTexture;
 class QRhiTexture;
 class QRhi;
 
-class QQuickRhiItemNode : public QSGTextureProvider, public QSGSimpleTextureNode
+class RhiItemNode : public QSGTextureProvider, public QSGSimpleTextureNode
 {
     Q_OBJECT
 
 public:
-    QQuickRhiItemNode(QQuickRhiItem *item);
-    ~QQuickRhiItemNode();
+    RhiItemNode(RhiItem *item);
+    ~RhiItemNode();
 
     QSGTexture *texture() const override;
 
@@ -23,7 +23,7 @@ public:
     bool isValid() const { return m_rhi && m_texture && m_sgWrapperTexture; }
     void scheduleUpdate();
     bool hasRenderer() const { return m_renderer; }
-    void setRenderer(QQuickRhiItemRenderer *r) { m_renderer = r; }
+    void setRenderer(RhiItemRenderer *r) { m_renderer = r; }
 
 private slots:
     void render();
@@ -32,7 +32,7 @@ private:
     void createNativeTexture();
     void releaseNativeTexture();
 
-    QQuickRhiItem *m_item;
+    RhiItem *m_item;
     QQuickWindow *m_window;
     QSize m_pixelSize;
     qreal m_dpr = 0.0f;
@@ -40,15 +40,15 @@ private:
     QRhiTexture *m_texture = nullptr;
     QSGPlainTexture *m_sgWrapperTexture = nullptr;
     bool m_renderPending = true;
-    QQuickRhiItemRenderer *m_renderer = nullptr;
+    RhiItemRenderer *m_renderer = nullptr;
 };
 
-class QQuickRhiItemPrivate : public QQuickItemPrivate
+class RhiItemPrivate : public QQuickItemPrivate
 {
-    Q_DECLARE_PUBLIC(QQuickRhiItem)
+    Q_DECLARE_PUBLIC(RhiItem)
 public:
-    static QQuickRhiItemPrivate *get(QQuickRhiItem *item) { return item->d_func(); }
-    mutable QQuickRhiItemNode *node = nullptr;
+    static RhiItemPrivate *get(RhiItem *item) { return item->d_func(); }
+    mutable RhiItemNode *node = nullptr;
     int explicitTextureWidth = 0;
     int explicitTextureHeight = 0;
     bool blend = true;
