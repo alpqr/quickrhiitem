@@ -45,23 +45,6 @@ void TestRenderer::updateMvp()
     scene.resourceUpdates->updateDynamicBuffer(scene.ubuf.data(), 0, 64, mvp.constData());
 }
 
-void TestRenderer::updateCubeTexture()
-{
-    QImage image(CUBE_TEX_SIZE, QImage::Format_RGBA8888);
-    const QRect r(QPoint(0, 0), CUBE_TEX_SIZE);
-    QPainter p(&image);
-    p.fillRect(r, QGradient::DeepBlue);
-    QFont font;
-    font.setPointSize(24);
-    p.setFont(font);
-    p.drawText(r, itemData.message);
-    p.end();
-
-    if (!scene.resourceUpdates)
-        scene.resourceUpdates = m_rhi->nextResourceUpdateBatch();
-    scene.resourceUpdates->uploadTexture(scene.cubeTex.data(), image);
-}
-
 static QShader getShader(const QString &name)
 {
     QFile f(name);
@@ -131,16 +114,6 @@ void TestRenderer::initScene()
 void TestRenderer::synchronize(QQuickRhiItem *rhiItem)
 {
     TestRhiItem *item = static_cast<TestRhiItem *>(rhiItem);
-    if (item->cubeRotation() != itemData.cubeRotation) {
-        itemData.cubeRotation = item->cubeRotation();
-        updateMvp();
-    }
-    if (item->message() != itemData.message) {
-        itemData.message = item->message();
-        updateCubeTexture();
-    }
-    if (item->transparentBackground() != itemData.transparentBackground)
-        itemData.transparentBackground = item->transparentBackground();
 }
 
 void TestRenderer::render(QRhiCommandBuffer *cb)
@@ -166,34 +139,4 @@ void TestRenderer::render(QRhiCommandBuffer *cb)
     cb->draw(36);
 
     cb->endPass();
-}
-
-void TestRhiItem::setCubeRotation(const QVector3D &v)
-{
-    if (m_cubeRotation == v)
-        return;
-
-    m_cubeRotation = v;
-    emit cubeRotationChanged();
-    update();
-}
-
-void TestRhiItem::setMessage(const QString &s)
-{
-    if (m_message == s)
-        return;
-
-    m_message = s;
-    emit messageChanged();
-    update();
-}
-
-void TestRhiItem::setTransparentBackground(bool b)
-{
-    if (m_transparentBackground == b)
-        return;
-
-    m_transparentBackground = b;
-    emit transparentBackgroundChanged();
-    update();
 }
